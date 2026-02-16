@@ -294,7 +294,7 @@ for i in np.arange(nDoF):
         UG[i] = 0        
     else:
         #Assign actual displacement
-        UG[i] = U[c]
+        UG[i] = U[c, 0]
         c=c+1
 
 UG = np.array([UG]).T  
