@@ -240,8 +240,11 @@ def calculateKg(memberNo):
 
 
 #-------------------------------------------------------------------------------
-nDoF = np.amax(members)*2 #Total number of degrees of freedom in the problem
-Kp = np.zeros([nDoF,nDoF]) #Initialise the primary stiffness matrix
+#nDoF = np.amax(members)*2 #Total number of degrees of freedom in the problem
+numberOfNodes = len(nodes)
+nDoF = numberOfNodes * 2
+Kp = np.zeros((nDoF, nDoF))
+#Kp = np.zeros([nDoF,nDoF]) #Initialise the primary stiffness matrix
 
 for n, mbr in enumerate(members):
 #note that enumerate adds a counter to an iterable (n)
@@ -279,7 +282,9 @@ Ks = np.matrix(Ks) # Convert Ks from numpy.ndarray to numpy.matrix to use build 
 
 forceVectorRed = copy.copy(forceVector)# Make a copy of forceVector so the copy can be edited, leaving the original unchanged
 forceVectorRed = np.delete(forceVectorRed,restrainedIndex,0) #Delete rows corresponding to restrained DoF
-U = Ks.I*forceVectorRed 
+U = np.linalg.solve(Ks, forceVectorRed)
+#U = Ks.I*forceVectorRed 
+
 
 
 
