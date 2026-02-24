@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 st.set_page_config(page_title="Truss Solver")
-st.title("Truss Solver Input Panel")
+st.title("Truss Solver")
 
 # =========================================================
 # MATERIAL
@@ -22,18 +22,12 @@ xFac = st.number_input("Scale factor for plotted displacements", value=500)
 st.subheader("Nodal Coordinates (x, y)")
 
 default_nodes = np.array([
-    [0,6],
-    [4,6],
-    [8,6],
-    [12,6],
-    [16,6],
-    [12,2],
-    [8,0],
-    [4,2]
+    [0,6],[4,6],[8,6],[12,6],[16,6],
+    [12,2],[8,0],[4,2]
 ])
 
 nodes_text = st.text_area(
-    "Enter nodal coordinates (x, y):",
+    "Enter nodal coordinates:",
     value="\n".join([f"{r[0]}, {r[1]}" for r in default_nodes]),
     height=200
 )
@@ -76,7 +70,6 @@ members = np.array([
 # =========================================================
 
 st.subheader("Supports")
-
 restrained_input = st.text_input(
     "Restrained DOF (start at 1, comma-separated)",
     value="1, 2, 10"
@@ -106,7 +99,7 @@ for dof in force_dofs:
         forceVector[dof] = force
 
 # =========================================================
-# VISUALIZATION
+# INITIAL STRUCTURE PLOT
 # =========================================================
 
 st.subheader("Structure")
@@ -175,13 +168,10 @@ for i, m in enumerate(members):
         for c2 in range(4):
             Kp[dof[r],dof[c2]] += k[r,c2]
 
-# Reduce system
 Ks = np.delete(Kp,restrainedIndex,axis=0)
 Ks = np.delete(Ks,restrainedIndex,axis=1)
-
 forceRed = np.delete(forceVector,restrainedIndex,axis=0)
 
-# Solve
 Ured = np.linalg.solve(Ks,forceRed)
 
 UG = np.zeros((nDoF,1))
@@ -192,6 +182,87 @@ for i in range(nDoF):
         j+=1
 
 FG = Kp @ UG
+
+# =========================================================
+# MEMBER FORCES
+# =========================================================
+
+mbrForces = []
+
+for i, m in enumerate(members):
+    ni, nj = m
+    theta = orientations[i]
+    L = lengths[i]
+    c = np.cos(theta)
+    s = np.sin(theta)
+
+    dof = [2*(ni-1),2*(ni-1)+1,2*(nj-1),2*(nj-1)+1]
+    disp = UG[dof]
+
+    T = np.array([[c,s,0,0],[0,0,c,s]])
+    local = T @ disp
+    F = (E*A/L)*(local[1]-local[0])
+    mbrForces.append(F.item())
+
+# =========================================================
+# TENSION / COMPRESSION DIAGRAM
+# =========================================================
+
+st.subheader("Tension / Compression Diagram")
+
+fig = plt.figure()
+ax = fig.add_subplot(111)
+ax.set_aspect("equal")
+
+for i, m in enumerate(members):
+    ni, nj = m
+    xi, yi = nodes[ni-1]
+    xj, yj = nodes[nj-1]
+
+    if abs(mbrForces[i]) < 1e-6:
+        color = 'grey'
+        style = '--'
+    elif mbrForces[i] > 0:
+        color = 'blue'
+        style = '-'
+    else:
+        color = 'red'
+        style = '-'
+
+    ax.plot([xi,xj],[yi,yj],color=color,linestyle=style)
+
+ax.grid()
+st.pyplot(fig)
+
+# =========================================================
+# DEFORMED SHAPE
+# =========================================================
+
+st.subheader("Deformed Shape")
+
+fig = plt.figure()
+ax = fig.add_subplot(111)
+ax.set_aspect("equal")
+
+for m in members:
+    ni, nj = m
+    xi, yi = nodes[ni-1]
+    xj, yj = nodes[nj-1]
+
+    ia = 2*(ni-1)
+    ib = 2*(ni-1)+1
+    ja = 2*(nj-1)
+    jb = 2*(nj-1)+1
+
+    ax.plot([xi,xj],[yi,yj],'grey',lw=0.8)
+    ax.plot([xi + UG[ia,0]*xFac,
+             xj + UG[ja,0]*xFac],
+            [yi + UG[ib,0]*xFac,
+             yj + UG[jb,0]*xFac],
+            'r')
+
+ax.grid()
+st.pyplot(fig)
 
 # =========================================================
 # RESULTS
@@ -208,18 +279,5 @@ for i in range(numberOfNodes):
     st.write(f"Node {i+1}: Ux = {ux:.6e} m , Uy = {uy:.6e} m")
 
 st.subheader("Member Forces")
-
 for i, m in enumerate(members):
-    ni, nj = m
-    theta = orientations[i]
-    L = lengths[i]
-    c = np.cos(theta)
-    s = np.sin(theta)
-
-    dof = [2*(ni-1),2*(ni-1)+1,2*(nj-1),2*(nj-1)+1]
-    disp = UG[dof]
-
-    T = np.array([[c,s,0,0],[0,0,c,s]])
-    local = T @ disp
-    F = (E*A/L)*(local[1]-local[0])
-    st.write(f"Member {i+1} ({ni}-{nj}): {round(F.item()/1000,2)} kN")
+    st.write(f"Member {i+1} ({m[0]}-{m[1]}): {round(mbrForces[i]/1000,2)} kN")
