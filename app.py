@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt 
 
 # Page setup
-st.set_page_config(page_title="Test Streamlit App", layout="wide")
+st.set_page_config(page_title="Test Streamlit App")
 
 # Title
 
